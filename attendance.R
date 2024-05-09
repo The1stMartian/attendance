@@ -1,5 +1,3 @@
-# Changes: overwrites same date
-
 # Auto-install required packages
 list.of.packages <- c("shiny", "readr", "shinyjs", "shinydashboard", "htmltools", "htmltools", "dplyr", "shiny.fluent", "shinythemes")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -13,11 +11,12 @@ library(htmltools)
 library(dplyr)
 library(shiny.fluent)
 library(shinythemes)
-
+library(stringi)
 
 # Customize
 attendanceFile = "wnp.csv"
 data <- read.csv(paste0("www/", attendanceFile), check.names=F)
+backupFolder = "daily_backup_data"
 pageTitle = "West Nashville Phoenix Lodge #131 - Digital Log Book"
 pageLogo = "wnpLogo.jpg" #expected in folder ./www
 
@@ -27,6 +26,11 @@ visitorDefault = "None"
 
 current_date = as.Date(format(Sys.Date(), "%Y-%m-%d"))
 day = weekdays(current_date)
+
+# Input data cleanup: remove columns of "NA" values based on "" col name
+allCols = colnames(data)
+goodCols = allCols[allCols != ""]
+data = data %>% select(goodCols)
 
 # Officer station options for drop down menu
 stations = c("None",
@@ -58,103 +62,124 @@ ui <- fluidPage(
       textInput("day", "Day:", value = day),
       textInput("eventType", "Event Type:"),
       textInput("candidate", "Candidate:", ""),
-      textInput("visitor", "Guest & Lodge Number:"),
+      textInput("visitor", "Guest & Lodge Info.:"),
       actionButton("enterButton", "Enter"),
-      actionButton("Save", "Save")
+      
     ),
     
     mainPanel(
       uiOutput("currentInfo"),
-      tags$img(src = pageLogo, height = "480", width = "480")
+      tags$img(src = pageLogo, height = "480", width = "480"),
+      div(style = "text-align: right;", actionButton("Save", "Don't Click"))
     )
   )
 )
 
 # Server function
 server <- function(input, output, session) {
+  
+  # Initialize an empty data frame to store the entries
+  entries <- reactiveVal(data.frame(
+    Station = character(),
+    Name = character(),
+    Date = as.Date(character()),
+    Day = character(),
+    Event = character(),
+    Candidate = character(),
+    Visitors = character(),
+    stringsAsFactors = FALSE
+  ))
+  
+  
+  # Save data when Quit and Save button has been clicked
+  observeEvent(input$Save, {
     
-    # Initialize an empty data frame to store the entries
-    entries <- reactiveVal(data.frame(
-      Station = character(),
-      Name = character(),
-      Date = as.Date(character()),
-      Day = character(),
-      Event = character(),
-      Candidate = character(),
-      Visitors = character(),
-      stringsAsFactors = FALSE
-    ))
+    # Edit the data:
+    infile = as.data.frame(entries())
+    
+    # Combine visitors with stations in case they're helping out
+    #infile$V2 = apply(infile[ , c("Visitors", "Station")] , 1 , paste , collapse = "-" )
+    
+    # Collect correct candidate entry
+    oc = unique(infile$Candidate)  # all candidate entries
+    oc = oc[oc != ""]              # get rid of blanks
+    if (length(oc) == 1){oc = sapply(oc, "[[", 1)} # get first entry
+    else if (length(oc) < 1){oc = candidateDefault}
+    else if (length(oc) > 1){oc = tail(oc, n=1)}  # if many entries, get last
+    
+    # Collect correct event entry
+    oe = infile$Event  # all event entries
+    oe = oe[oe != ""] # get rid of blank events
+    if (length(oe) < 1){oe = eventDefault}
+    else if (length(oe) == 1){oe = sapply(oe, "[[", 1)} # get the only
+    else if (length(oe) > 1){oe = tail(oe, n=1)} # if multiple, get last 
+    
+    # Calendar info
+    oday = unique(infile$Day)  # day
+    odate = unique(infile$Date)  # date
+    meetingDate = format(Sys.Date(), "%Y-%m-%d")
+    
+    # Collect visitor info
+    vis = infile %>% filter(Visitors != "") %>% select(Visitors) # Visitors
+    visPaste = sapply(vis, paste, collapse=":") # visitors as one string
     
     
-    # Save data when Quit and Save button has been clicked
-    observeEvent(input$Save, {
-      
-      # Edit the data:
-      infile = as.data.frame(entries())
-      
-      # Combine visitors with stations in case they're helping out
-      infile$V2 = apply(infile[ , c("Visitors", "Station")] , 1 , paste , collapse = "-" )
-      
-      # Collect correct candidate entry
-      oc = unique(infile$Candidate)  # all candidate entries
-      oc = oc[oc != ""]              # get rid of blanks
-      if (length(oc) == 1){oc = sapply(oc, "[[", 1)} # get first entry
-      else if (length(oc) < 1){oc = candidateDefault}
-      else if (length(oc) > 1){oc = tail(oc, n=1)}  # if many entries, get last
-      
-      # Collect correct event entry
-      oe = infile$Event  # all event entries
-      oe = oe[oe != ""] # get rid of blank events
-      if (length(oe) < 1){oe = eventDefault}
-      else if (length(oe) == 1){oe = sapply(oe, "[[", 1)} # get the only
-      else if (length(oe) > 1){oe = tail(oe, n=1)} # if multiple, get last 
-      
-      # Calendar info
-      oday = unique(infile$Day)  # day
-      odate = unique(infile$Date)  # date
-      meetingDate = format(Sys.Date(), "%Y-%m-%d")
-      
-      # Collect visitor info
-      vis = infile %>% filter(Visitors != "") %>% select(V2) # Visitors
-      visPaste = sapply(vis, paste, collapse=":") # visitors as one string
-      
-      
-      # Create data frame of today's info
-      officers = infile %>% filter(Station != "None") %>% select(c("Name","Station"))
-      officers = rbind(officers, c("Day", oday))
-      officers = rbind(officers, c("Candidate", oc))
-      officers = rbind(officers, c("Event", oe))
-      officers = rbind(officers, c("Visitors", visPaste))
-      
-      # filter out double entries 
-      officers = officers[!duplicated(officers[,c('Name')]),]
-      
-      # Change new data column to today's date
-      colnames(officers)[1] = "FullName"
-      colnames(officers)[2] = meetingDate
-      
-      # Remove blank entries
-      officers = officers[officers["FullName"] != "<WNP Member>",]
-      
-      # Merge original data with current:
-      merged = left_join(data, officers)
-      
-      # Clean up data: replace "NA" with "A" for absent
-      merged[is.na(merged[meetingDate]), meetingDate] = "A"
-      
-      # Define the file path and name
-      savePath <- "www/"
-      saveFile <- paste0(format(Sys.Date(), "%Y-%m-%d"), "_wnp.csv")
-      
-      # Save the entries to a .csv file
-      write.csv(merged, file.path(savePath, saveFile), row.names = FALSE, quote=F)
-      
-      # Save entries - update original file
-      write.csv(merged, file.path(savePath, attendanceFile), row.names = FALSE, quote=F)
-      
-      # Add quit app function to the Save button
-      # stopApp()
-    })
+    # Create data frame of today's info
+    officers = infile %>% filter(Station != "None") %>% select(c("Name","Station"))
+    officers = rbind(officers, c("Day", oday))
+    officers = rbind(officers, c("Candidate", oc))
+    officers = rbind(officers, c("Event", oe))
+    officers = rbind(officers, c("Visitors", visPaste))
+    
+    # filter out double entries 
+    officers = officers[!duplicated(officers[,c('Name')]),]
+    
+    # Change new data column to today's date
+    colnames(officers)[1] = "FullName"
+    colnames(officers)[2] = meetingDate
+    
+    # Remove blank entries
+    officers = officers[officers["FullName"] != "<WNP Member>",]
+    
+    # Store current data as temp file in case of column-header duplication error
+    savePath = "www/"
+    tempFolder = "temp/"
+    dir.create(file.path(savePath, tempFolder), showWarnings = FALSE) # make temp dir
+    t = format(Sys.time(), "%b %d %X %Y")
+    t = gsub(":", ".", t)
+    tempFile <- paste0(t, "_wnp.csv")
+    write.csv(officers, file.path(savePath, tempFolder, tempFile), row.names = FALSE, quote=F)
+    
+    # Overwrite column if it already exists in the data file
+    
+    # Get new column name
+    newColName = colnames(officers)[2] # new column to be merged to old data
+    
+    # If new column name (the date) exists in input data, drop original col. 
+    if (newColName %in% colnames(data) == "TRUE"){
+      data = data %>% select(!newColName)
+    }
+    
+    # Merge original data with current:
+    merged = left_join(data, officers, by="FullName")
+    
+    # Clean up data: replace "NA" with "A" for absent
+    merged[is.na(merged[meetingDate]), meetingDate] = "A"
+    
+    # Define the main output file path
+    saveFile <- paste0(format(Sys.Date(), "%Y-%m-%d"), "_wnp.csv")
+    
+    # Save the entries to a backup.csv file
+    backupPath = file.path("www/", backupFolder)
+    dir.create(backupPath, showWarnings = FALSE)
+    write.csv(merged, file.path(backupPath, saveFile), row.names = FALSE, quote=F)
+    
+    # Save entries - update original file
+    write.csv(merged, file.path(savePath, attendanceFile), row.names = FALSE, quote=F)
+    
+    # Add quit app function to the Save button
+    # stopApp()
+  })
   
   # Reactive values for persistent data storage
   values <- reactiveValues(
@@ -225,21 +250,20 @@ server <- function(input, output, session) {
     ")
   })
   
-
-  
   # Outputs all data with HTML formatting
   output$currentInfo <- renderUI({
     attendeeInfo <- apply(values$attendeeData, 1, function(row) {
-    paste0(row["Name"], " (", row["Station"], ")")
-  })
+      paste0(row["Name"], " (", row["Station"], ")")
+    })
     
     info <- list(
       paste("<b>Day:</b>", htmlEscape(weekdays(Sys.Date()))),
-      paste("<b>Date:</b>", htmlEscape(format(Sys.Date(), "%Y-%m-%d"))),
-      paste("<b>Event Type:</b>", htmlEscape(values$event)),
+      #paste("<b>Date:</b>", htmlEscape(format(Sys.Date(), "%Y-%m-%d"))),
+      paste("<b>Date:</b>", htmlEscape(format(Sys.Date(), "%b %d, %Y"))),
+      paste("<b>Event:</b>", htmlEscape(values$event)),
       paste("<b>Candidate:</b>", htmlEscape(values$candidate)),
       paste("<b>Attendees:</b>", htmlEscape(toString(attendeeInfo))),
-      paste("<b>Visitor:</b>", htmlEscape(toString(sapply(values$visitorList, as.character))))
+      paste("<b>Guests:</b>", htmlEscape(toString(sapply(values$visitorList, as.character))))
     )
     
     HTML(paste(info, collapse = "<br/>"))
