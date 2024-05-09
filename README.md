@@ -1,6 +1,6 @@
 # Attendance Check-In App
 
-This is a basic R-Shiny check-in app, customized for masonic lodges. The app records meeting attendance to a spread sheet, allowing general metrics to be analyzed. The app also prints current meeting information to the screen so data entry can be confirmed. If the wrong information is entered, simply re-enter the information.
+This is an R-Shiny attendance check-in app, customized for use by masonic lodges. The app records meeting attendance to a spread sheet, allowing general metrics to be analyzed. Current meeting information is also printed to the screen so data entry can be confirmed. If the wrong candidate, or event information was entered, simply re-enter the information and the entries will be replaced.
 
 ![App](./www/app.jpg)
 
@@ -15,12 +15,16 @@ This is a basic R-Shiny check-in app, customized for masonic lodges. The app rec
 - Date/day auto-detection
 
 ## Usage:
-- The "Enter" button enters the current information. Multiple fields can be entered simultanesously without issue. 
-- The "Save" button appends the currently entered information to the initial spread sheet. There should be no problem clicking save multiple times as the app will simply over-write the current day's column. So, if a member arrives late, it's perfectly fine to add them and click save again.
-- Alterations to the spread sheet can also be completed manually: simply open the data sheet in Excel and make any desired changes.
-- To customize for new/additional members, add new rows using Excel. 
+- "Enter" Button makes a new line entry in the temporary data frame from the currently displayed in the text input boxes. 
+- Multiple text fields can be entered simultanesously.
+- Visitors can have officer stations 
+- "Save" button: saves the currently entered information as a new column in the initial spread sheet. There should be no problem clicking save multiple times as the app will simply over-write the current day's column. So, if a member arrives late, it's perfectly fine to add them and click save again. This button also makes a bakup copy of the updated attendance data with the name [current date]_[originalFileName].csv.
+- The attendance data can also be manually edited in Excel, e.g. to add/remove members.  
 
 ## Notes:
 - To use auto-complete in the member drop-down menu, click the drop down menu, hit "delete", then start typing. 
-- Data are stored as a .csv file. As such, avoid the use of commas in entry fields. The app does not currently remove them, so a comma can disrupt the data structure.
-- To autom
+- Data are stored as a .csv file. As such, avoid the use of commas in entry fields. The app does not currently remove entered commas, so disrupt the data structure.
+
+# Future versions:
+- There is no ability to remove accidentally entered attendees or visitors
+- Text entries should be filtered to remove commas, preventing issues with .csv formatted data
