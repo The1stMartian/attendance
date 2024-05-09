@@ -58,7 +58,7 @@ ui <- fluidPage(
       textInput("day", "Day:", value = day),
       textInput("eventType", "Event Type:"),
       textInput("candidate", "Candidate:", ""),
-      textInput("visitor", "Visitor Name and Lodge Number:"),
+      textInput("visitor", "Guest & Lodge Number:"),
       actionButton("enterButton", "Enter"),
       actionButton("Save", "Save")
     ),
@@ -113,8 +113,6 @@ server <- function(input, output, session) {
       oday = unique(infile$Day)  # day
       odate = unique(infile$Date)  # date
       meetingDate = format(Sys.Date(), "%Y-%m-%d")
-      print("MEETING DATE")
-      print(meetingDate)
       
       # Collect visitor info
       vis = infile %>% filter(Visitors != "") %>% select(V2) # Visitors
@@ -137,9 +135,6 @@ server <- function(input, output, session) {
       
       # Remove blank entries
       officers = officers[officers["FullName"] != "<WNP Member>",]
-      
-      print("officers: ")
-      print(officers)
       
       # Merge original data with current:
       merged = left_join(data, officers)
@@ -180,7 +175,7 @@ server <- function(input, output, session) {
       Day = input$day,
       Event = input$eventType,
       Candidate = input$candidate,
-      Visitors = paste(input$visitor, collapse = ", "),
+      Visitors = paste(input$visitor, collapse = ": "),
       stringsAsFactors = FALSE
     )
     
@@ -195,7 +190,7 @@ server <- function(input, output, session) {
     
     # Update visitorList only if a new visitor is entered and it's not empty
     if (!is.null(input$visitor) && input$visitor != "") {
-      values$visitorList <- unique(c(values$visitorList, input$visitor))
+      values$visitorList <- unique(c(values$visitorList, paste0(input$visitor)))
     }
     
     # Update candidate
@@ -251,12 +246,12 @@ server <- function(input, output, session) {
     })
     
     info <- c(
-      paste0("Today's Event: ", weekdays(Sys.Date()), ", ", format(Sys.Date(), "%B %d, %Y")),
+      paste0("Date: ", weekdays(Sys.Date()), ", ", format(Sys.Date(), "%B %d, %Y")),
       "",
-      paste("Event Type:", htmlEscape(values$event)),
+      paste("Event:", htmlEscape(values$event)),
       paste("Candidate:", htmlEscape(values$candidate)),
       paste("Attendees:", htmlEscape(toString(attendeeInfo))),
-      paste("Visitors:", htmlEscape(toString(sapply(values$visitorList, as.character))))
+      paste("Guests:", htmlEscape(toString(sapply(values$visitorList, as.character))))
     )
     paste(info, collapse = "\n")
   })
