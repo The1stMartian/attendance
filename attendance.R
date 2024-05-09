@@ -64,9 +64,9 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      verbatimTextOutput("currentInfo"),
-      tags$img(src = pageLogo, height = 480, width = 480)
-      )
+      uiOutput("currentInfo"),
+      tags$img(src = pageLogo, height = "480", width = "480")
+    )
   )
 )
 
@@ -225,35 +225,24 @@ server <- function(input, output, session) {
     ")
   })
   
-  # Output only the last data entered
-  output$lastDataEntered <- renderText({
-    if (nrow(values$attendeeData) > 0) {
-      lastEntry <- tail(values$attendeeData, 1)
-      paste(
-        "Name:", lastEntry$Name,
-        "Station:", lastEntry$Station,
-        "Visitors:", toString(lastEntry$Visitors)
-      )
-    } else {
-      "No data entered yet."
-    }
-  })
+
   
-  # Outputs all data
-  output$currentInfo <- renderText({
+  # Outputs all data with HTML formatting
+  output$currentInfo <- renderUI({
     attendeeInfo <- apply(values$attendeeData, 1, function(row) {
-      paste0(row["Name"], " (", row["Station"], ")")
-    })
+    paste0(row["Name"], " (", row["Station"], ")")
+  })
     
-    info <- c(
-      paste0("Date: ", weekdays(Sys.Date()), ", ", format(Sys.Date(), "%B %d, %Y")),
-      "",
-      paste("Event:", htmlEscape(values$event)),
-      paste("Candidate:", htmlEscape(values$candidate)),
-      paste("Attendees:", htmlEscape(toString(attendeeInfo))),
-      paste("Guests:", htmlEscape(toString(sapply(values$visitorList, as.character))))
+    info <- list(
+      paste("<b>Day:</b>", htmlEscape(weekdays(Sys.Date()))),
+      paste("<b>Date:</b>", htmlEscape(format(Sys.Date(), "%Y-%m-%d"))),
+      paste("<b>Event Type:</b>", htmlEscape(values$event)),
+      paste("<b>Candidate:</b>", htmlEscape(values$candidate)),
+      paste("<b>Attendees:</b>", htmlEscape(toString(attendeeInfo))),
+      paste("<b>Visitor:</b>", htmlEscape(toString(sapply(values$visitorList, as.character))))
     )
-    paste(info, collapse = "\n")
+    
+    HTML(paste(info, collapse = "<br/>"))
   })
 }
 
