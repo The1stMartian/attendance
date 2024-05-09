@@ -141,7 +141,7 @@ server <- function(input, output, session) {
     # Remove blank entries
     officers = officers[officers["FullName"] != "<WNP Member>",]
     
-    # Store current data as temp file in case of column-header duplication error
+    # Store temp data as file in case of column-header duplication error
     savePath = "www/"
     tempFolder = "temp/"
     dir.create(file.path(savePath, tempFolder), showWarnings = FALSE) # make temp dir
@@ -173,9 +173,13 @@ server <- function(input, output, session) {
     backupPath = file.path("www/", backupFolder)
     dir.create(backupPath, showWarnings = FALSE)
     write.csv(merged, file.path(backupPath, saveFile), row.names = FALSE, quote=F)
+  
     
     # Save entries - update original file
-    write.csv(merged, file.path(savePath, attendanceFile), row.names = FALSE, quote=F)
+    tryCatch({
+      write.csv(merged, file.path(savePath, attendanceFile), row.names = FALSE, quote=F)
+    },
+    error = function(cond){print("Cannot save. Is data file open in another app?")})
     
     # Add quit app function to the Save button
     # stopApp()
