@@ -17,7 +17,7 @@ library(stringi)
 attendanceFile = "wnp.csv"
 data <- read.csv(paste0("www/", attendanceFile), check.names=F)
 backupFolder = "daily_backup_data"
-pageTitle = "West Nashville Phoenix Lodge #131 - Digital Log Book"
+pageTitle = HTML("<b>West Nashville Phoenix Lodge #131</b><br>Digital Log Book")
 pageLogo = "wnpLogo.jpg" #expected in folder ./www
 
 eventDefault = "None"
@@ -69,8 +69,10 @@ ui <- fluidPage(
     
     mainPanel(
       uiOutput("currentInfo"),
-      tags$img(src = pageLogo, height = "480", width = "480"),
-      div(style = "text-align: right;", actionButton("Save", "Don't Click"))
+      HTML("<br><br>"),
+      #tags$img(src = "wnpLogo.jpg", height = "350", width = "350"),
+      HTML('<center><img src = "wnpLogo.jpg", height = "350", width = "350"></center>'),
+      div(style = "text-align: right;", actionButton("Save", "Save Meeting"))
     )
   )
 )
@@ -261,12 +263,14 @@ server <- function(input, output, session) {
     })
     
     info <- list(
-      paste("<b>Day:</b>", htmlEscape(weekdays(Sys.Date()))),
-      #paste("<b>Date:</b>", htmlEscape(format(Sys.Date(), "%Y-%m-%d"))),
-      paste("<b>Date:</b>", htmlEscape(format(Sys.Date(), "%b %d, %Y"))),
+      paste0("<b>Date: </b>", htmlEscape(weekdays(Sys.Date())), ", ", htmlEscape(format(Sys.Date(), "%b %d, %Y"))),
+      paste(""),
       paste("<b>Event:</b>", htmlEscape(values$event)),
+      paste(""),
       paste("<b>Candidate:</b>", htmlEscape(values$candidate)),
+      paste(""),
       paste("<b>Attendees:</b>", htmlEscape(toString(attendeeInfo))),
+      paste(""),
       paste("<b>Guests:</b>", htmlEscape(toString(sapply(values$visitorList, as.character))))
     )
     
