@@ -110,9 +110,9 @@ server <- function(input, output, session) {
   
   # Initialize an empty data frame to store the entries
   entries <- reactiveVal(data.frame(
+    Name = character(),
     Station = character(),
     Role = character(),
-    Name = character(),
     Date = as.Date(character()),
     Day = character(),
     Event = character(),
@@ -121,26 +121,28 @@ server <- function(input, output, session) {
     stringsAsFactors = FALSE
   ))
   
+  # Delete me
+  #oc = data.frame(Station=c("a", "b", "c", "d", "e"), 
+  #                Name = c("jeff", "chris", "chris", "Mike", ""),
+  #                Date = c("", "", "", "Date!", ""),
+  #                Event = c("", "", "", "", "Event!"))
+  
   
   # Save data when Quit and Save button has been clicked
   observeEvent(input$Save, {
     
     # Edit the data:
     todaysData = as.data.frame(entries())
-    print("Saved data")
     
+    # Collect attendee names and station/role
+    attendeeDF = todaysData[todaysData$Name != "",]     # get rid of blanks
+    attendeeDF = attendeeDF %>% group_by(Name) %>% slice_tail() %>% ungroup() 
     
-    # Combine visitors with stations in case they're helping out
-    #todaysData$V2 = apply(todaysData[ , c("Visitors", "Station")] , 1 , paste , collapse = "-" )
+    # Collect candidate
+    oc = unique(todaysData$Candidate)
+    if (length(oc) > 1){oc = tail(oc, n=1)} # get last candidate entry
     
-    # Collect correct candidate entry
-    oc = unique(todaysData$Candidate)  # all candidate entries
-    oc = oc[oc != ""]              # get rid of blanks
-    if (length(oc) == 1){oc = sapply(oc, "[[", 1)} # get first entry
-    else if (length(oc) < 1){oc = candidateDefault}
-    else if (length(oc) > 1){oc = tail(oc, n=1)}  # if many entries, get last
-    
-    # Collect correct event entry
+    # Collect last event entry 
     oe = todaysData$Event  # all event entries
     oe = oe[oe != ""] # get rid of blank events
     if (length(oe) < 1){oe = eventDefault}
@@ -153,15 +155,16 @@ server <- function(input, output, session) {
     meetingDate = format(Sys.Date(), "%Y-%m-%d")
     
     # Collect visitor info
-    vis = todaysData %>% filter(Visitors != "") %>% select(Visitors) # Visitors
-    visPaste = sapply(vis, paste, collapse=":") # visitors as one string
+    vis = todaysData %>% filter(Visitors != "") %>% select(Visitors, Station) # Visitors
+    vis$Combo = paste(vis$Visitors, " ", vis$Station)
+    #visPaste = sapply(vis$Combo, paste, collapse=" | ") # visitors as one string
     
     # Create data frame of today's info
-    todayDF = todaysData %>% filter(Station != "None") %>% select(c("Name","Station"))
+    todayDF = attendeeDF %>% select(c("Name","Station"))
     todayDF = rbind(todayDF, c("Day", oday))
     todayDF = rbind(todayDF, c("Candidate", oc))
     todayDF = rbind(todayDF, c("Event", oe))
-    todayDF = rbind(todayDF, c("Visitors", visPaste))
+    todayDF = rbind(todayDF, c("Visitors", paste(vis$Combo, collapse = "| ")))
     
     # filter out double entries 
     todayDF = todayDF[!duplicated(todayDF[,c('Name')]),]
@@ -191,9 +194,6 @@ server <- function(input, output, session) {
     if (newColName %in% colnames(data) == "TRUE"){
       data = data %>% select(!newColName)
     }
-    
-    print("todayDF")
-    print(todayDF)
     
     # Merge original data with current:
     merged = left_join(data, todayDF, by="FullName")
@@ -233,13 +233,13 @@ server <- function(input, output, session) {
     
     # Database entry (not display)
     new_entry <- data.frame(
-      Station = paste0(input$station, " ", input$role),
       Name = input$name,
+      Station = paste0(input$station, " ", input$role),
       Date = as.Date(input$date),
       Day = input$day,
       Event = input$eventType,
       Candidate = input$candidate,
-      Visitors = paste(input$visitor, collapse = ": "),
+      Visitors = paste(input$visitor, collapse = "| "),
       stringsAsFactors = FALSE
     )
     
@@ -255,7 +255,8 @@ server <- function(input, output, session) {
     
     # Update visitorList only if a new visitor is entered and it's not empty
     if (!is.null(input$visitor) && input$visitor != "") {
-      values$visitorList <- unique(c(values$visitorList, paste0(input$visitor)))
+      newVisitorEntry = paste0(input$visitor, " ", input$station, " ", input$role)
+      values$visitorList <- unique(c(values$visitorList, newVisitorEntry))
     }
     
     # Update candidate
